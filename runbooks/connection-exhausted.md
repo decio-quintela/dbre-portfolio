@@ -1,140 +1,82 @@
-\# Runbook: Connection Pool Exhausted
+# Runbook: Connection Pool Exhausted
 
+**Severity:** P1 — Critical | **Response time:** 15 minutes
 
+## Symptoms
 
-\*\*Severity:\*\* P1 — Critical | \*\*Response time:\*\* 15 minutes
+- Application returning "too many connections" or "connection refused"
+- Grafana alert: active connections > 90% of max_connections
+- PostgreSQL log: `FATAL: remaining connection slots are reserved`
 
-
-
-\## Symptoms
-
-\- Application returning "too many connections" or "connection refused"
-
-\- Grafana alert: active connections > 90% of max\_connections
-
-\- PostgreSQL log: `FATAL: remaining connection slots are reserved`
-
-
-
-\## Diagnosis
+## Diagnosis
 
 ```sql
+-- Current connections vs limit
+SELECT count(*) AS active,
+       max_conn,
+       count(*) * 100 / max_conn AS pct_used
+FROM pg_stat_activity,
+     (SELECT setting::int AS max_conn
+      FROM pg_settings WHERE name = 'max_connections') s
+GROUP BY max_conn;
 
-\-- Check current connections vs limit
+-- Who is consuming connections
+SELECT usename, application_name, state, count(*)
+FROM pg_stat_activity
+GROUP BY usename, application_name, state
+ORDER BY count(*) DESC;
 
-SELECT count(\*) AS total,
-
-&#x20;      max\_conn,
-
-&#x20;      count(\*) \* 100 / max\_conn AS pct\_used
-
-FROM pg\_stat\_activity,
-
-&#x20;    (SELECT setting::int AS max\_conn FROM pg\_settings
-
-&#x20;     WHERE name = 'max\_connections') s
-
-GROUP BY max\_conn;
-
-
-
-\-- Find who is consuming connections
-
-SELECT usename, application\_name, state, count(\*)
-
-FROM pg\_stat\_activity
-
-GROUP BY usename, application\_name, state
-
-ORDER BY count(\*) DESC;
-
-
-
-\-- Find idle connections wasting slots
-
-SELECT count(\*) FROM pg\_stat\_activity
-
+-- Idle connections wasting slots
+SELECT count(*) FROM pg_stat_activity
 WHERE state = 'idle'
-
-AND state\_change < NOW() - INTERVAL '10 minutes';
-
+AND state_change < NOW() - INTERVAL '10 minutes';
 ```
 
+## Resolution
 
-
-\## Resolution
-
-1\. Kill idle connections immediately:
+1. Kill idle connections immediately:
 
 ```sql
-
-SELECT pg\_terminate\_backend(pid)
-
-FROM pg\_stat\_activity
-
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
 WHERE state = 'idle'
-
-AND state\_change < NOW() - INTERVAL '5 minutes'
-
-AND pid <> pg\_backend\_pid();
-
+AND state_change < NOW() - INTERVAL '5 minutes'
+AND pid <> pg_backend_pid();
 ```
 
-2\. If pgBouncer is installed, check pool status:
+2. Check pgBouncer pool status (if installed):
 
 ```bash
-
 psql -p 6432 -U pgbouncer pgbouncer -c "SHOW POOLS;"
-
 ```
 
-3\. If pgBouncer is NOT installed — install it (see ha-cluster/README.md)
-
-4\. Increase `max\_connections` temporarily if critical (requires restart):
+3. Increase `max_connections` temporarily if still critical:
 
 ```bash
-
-\# Edit postgresql.conf
-
-max\_connections = 300   # increase from current value
-
-\# Then restart (causes brief downtime)
-
+# Edit postgresql.conf
+max_connections = 300
+# Restart required — causes brief downtime
 sudo systemctl restart postgresql
-
 ```
 
-
-
-\## Verification
+## Verification
 
 ```sql
-
-SELECT count(\*) FROM pg\_stat\_activity;
-
-\-- Should be well below max\_connections
-
+SELECT count(*) FROM pg_stat_activity;
+-- Should be well below max_connections
 ```
 
-Application errors resolved and new connections accepted.
+Application accepting new connections without errors.
 
+## Prevention
 
+- Install pgBouncer in transaction mode (see ha-cluster/README.md)
+- Set Grafana alert at 80% of max_connections
+- Add to postgresql.conf: `idle_in_transaction_session_timeout = '5min'`
+- Review application connection pool settings (min/max pool size)
 
-\## Prevention
+## Related runbooks
 
-\- Install and configure pgBouncer in transaction mode
-
-\- Set Grafana alert at 80% of max\_connections
-
-\- Set `idle\_in\_transaction\_session\_timeout = '5min'` in postgresql.conf
-
-\- Review application connection pool settings (min/max pool size)
-
-
-
-\## Related runbooks
-
-→ \[Disk Full](./disk-full.md)
-
-→ \[Lock Contention](./lock-contention.md)
-
+- [Disk Full](./disk-full.md)
+- [Lock Contention](./lock-contention.md)
+- [High Replication Lag](./high-replication-lag.md)
