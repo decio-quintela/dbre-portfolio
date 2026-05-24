@@ -94,4 +94,25 @@ JOIN pg_stat_activity blocking
 
 ---
 
+## Kill — Signals for PostgreSQL
+
+| Signal | Command | Effect on PostgreSQL |
+|---|---|---|
+| SIGINT (2) | `kill -2 <PID>` | Cancel current query — keep connection |
+| SIGTERM (15) | `kill -15 <PID>` | Graceful shutdown of backend |
+| SIGKILL (9) | `kill -9 <PID>` | Force kill — NEVER use on postmaster |
+
+**Always prefer SQL when possible:**
+- Cancel query: `SELECT pg_cancel_backend(PID);`
+- End connection: `SELECT pg_terminate_backend(PID);`
+
+**Find PID before killing:**
+```bash
+ps aux --sort=-%cpu | grep postgres   # highest CPU first
+pgrep -x postgres | head -1           # postmaster PID — never kill this
+ps -p <PID> -f                        # confirm what a PID is
+```
+
+---
+
 *Updated as I learn — part of [dbre-portfolio](https://github.com/decio-quintela/dbre-portfolio)*
