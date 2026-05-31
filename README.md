@@ -18,9 +18,9 @@
 
 # \- ☁️  AWS (RDS, Aurora, CloudWatch) · Terraform · Docker
 
-# \- 🎯 Open to DBRE opportunities in Portugal / Europe
+# \- 🎯 Open to DBRE opportunities
 
-# \- 🔗 LinkedIn: linkedin.com/in/seu-perfil-aqui
+# \- 🔗 LinkedIn: www.linkedin.com/in/decio-quintela
 
 # 
 
