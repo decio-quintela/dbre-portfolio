@@ -326,6 +326,27 @@ SELECT count(*) AS active,
   (SELECT setting::int FROM pg_settings WHERE name='max_connections') AS pct_used
 FROM pg_stat_activity;
 ```
+---
+
+# Navegação nos diretórios do PostgreSQL
+ls -lh /var/lib/postgresql/16/main/
+ls -lh /etc/postgresql/16/main/
+ls -lh /var/log/postgresql/
+
+# Inspecionar arquivos de configuração
+cat /etc/postgresql/16/main/postgresql.conf | grep -v "^#" | grep -v "^$"
+less /etc/postgresql/16/main/pg_hba.conf
+
+# Encontrar arquivos do PostgreSQL
+find /var/lib/postgresql -name "*.conf"
+find /var/log/postgresql -name "*.log" -mtime -1
+
+# Compactar backup de configuração
+tar -czf /tmp/pg-config-backup-$(date +%Y%m%d).tar.gz /etc/postgresql/
+
+# VIM para editar configuração
+sudo vim /etc/postgresql/16/main/postgresql.conf
+# i = inserir | Esc = sair do insert | :wq = salvar e sair | :q! = sair sem salvar
 
 ---
 
